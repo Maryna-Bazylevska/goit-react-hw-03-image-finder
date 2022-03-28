@@ -22,17 +22,16 @@ export default class ImageGallery extends React.Component {
     largeImageURL: null,
   };
   componentDidUpdate(prevProps, prevState) {
-    if (
-      prevProps.imageName !== this.props.imageName ||
-      prevState.pageNumber !== this.state.pageNumber
-    ) {
+    const { imageName } = this.props;
+    if (prevProps.imageName !== this.props.imageName) {
       this.setState({ status: Status.PENDING });
-      this.onSearch(this.props.imageName, this.state.pageNumber);
+      this.onSearch(imageName);
     }
   }
-  onSearch = (imageName, pageNumber) => {
+  onSearch = () => {
+    const { imageName } = this.props;
     fetch
-      .fetchImages(this.props.imageName, this.state.pageNumber)
+      .fetchImages(imageName, 1)
       .then((data) => {
         if (data.hits.length < 1) {
           this.setState((state) => ({
@@ -40,9 +39,10 @@ export default class ImageGallery extends React.Component {
           }));
           return alert("Something wrong!");
         } else {
-          this.setState((state) => ({
+          this.setState((prevState) => ({
             items: data.hits,
             status: Status.RESOLVED,
+            pageNumber: prevState.pageNumber + 1,
           }));
         }
       })
@@ -57,10 +57,20 @@ export default class ImageGallery extends React.Component {
       });
     }, 500);
   };
-  onLoadMore = () => {
-    this.setState((state) => ({
-      pageNumber: state.pageNumber + 1,
-    }));
+
+  onLoadMore = (e) => {
+    fetch
+      .fetchImages(this.props.imageName, this.state.pageNumber)
+      .then((data) =>
+        this.setState((prevState) => {
+          return {
+            pageNumber: prevState.pageNumber + 1,
+            items: [...prevState.items, ...data.hits],
+            status: "resolved",
+          };
+        })
+      )
+      .finally(this.handleScroll());
   };
   toggleModal = () => {
     this.setState((state) => ({
@@ -71,6 +81,7 @@ export default class ImageGallery extends React.Component {
     this.setState({ largeImageURL: imageUrl });
     this.toggleModal();
   };
+
   render() {
     const { items, status, showModal, largeImageURL } = this.state;
     if (status === "idle") {
